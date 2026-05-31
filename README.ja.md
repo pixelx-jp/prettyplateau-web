@@ -22,13 +22,13 @@
 都市・プリセット・テーマ・形式を選ぶだけで、印刷品質の都市マップ（PNG / SVG / PDF /
 mp4）をブラウザで生成・ダウンロードできます。これは
 [`prettyplateau`](https://github.com/pixelx-jp/prettyplateau) レンダリングライブラリ
-のブラウザ版ライブデモです。
+を、そのままブラウザで試せるライブデモです。
 
-Yodo Labs の PLATEAU オープンソース群の一部です:
-[`prettyplateau`](https://github.com/pixelx-jp/prettyplateau)（このデモが動かすレンダラ）
-· [`plateau-bridge`](https://github.com/pixelx-jp/plateau-bridge)（読み込む建物データの
-パイプライン）· [`plateau-risk-lens`](https://github.com/pixelx-jp/plateau-risk-lens)
-（別の姉妹プロジェクト — 2D 災害リスク解説）。
+Yodo Labs が手がける PLATEAU 関連オープンソースのひとつです。
+[`prettyplateau`](https://github.com/pixelx-jp/prettyplateau)（このデモが内部で動かす
+レンダラ）／ [`plateau-bridge`](https://github.com/pixelx-jp/plateau-bridge)（建物データを
+生成するパイプライン）／ [`plateau-risk-lens`](https://github.com/pixelx-jp/plateau-risk-lens)
+（独立した姉妹プロジェクト。2D の災害リスク解説ツール）。
 
 ## アーキテクチャ
 
@@ -42,19 +42,19 @@ web (静的, Vite+React)  ──POST /api/render──►  render-service (FastA
 ```
 
 - **render-service** は `prettyplateau.render` の薄いラッパーです。入力はすべて
-  ホワイトリスト化（`render-service/allowlist.py`）され、キャッシュ優先のため同じ
-  組み合わせの再生成は計算ゼロです。
-- **ライブ生成と事前生成**: 建物 15 万未満の都市はオンデマンド生成。より大きな都市と
-  mp4 アニメーションはギャラリーの作例として表示します（サーバー側 matplotlib は
-  メモリ・CPU を要し、大都市は数分かかるため）。
+  ホワイトリスト化（`render-service/allowlist.py`）されており、キャッシュ優先のため、
+  同じ組み合わせを再生成しても追加の計算は発生しません。
+- **ライブ生成と事前生成**: 建物 15 万棟未満の都市はその場で生成します。それより大きな
+  都市と mp4 アニメーションは、作例としてギャラリーに掲載しています（サーバー側の
+  matplotlib はメモリと CPU を多く使い、大都市では数分かかるため）。
 
 ## エンドポイント
 
 | メソッド | パス | 用途 |
 |---|---|---|
-| GET | `/api/healthz` | 死活監視（Cloud Run の GFE が裸の `/healthz` を横取りするため `/api` 配下） |
-| GET | `/api/options` | ホワイトリスト化された都市 / プリセット / テーマ / 形式 |
-| POST | `/api/render` | 1 件のレンダリング（キャッシュ優先）、バイト列を返す |
+| GET | `/api/healthz` | ヘルスチェック（Cloud Run の GFE が `/healthz` を横取りするため `/api` 配下に配置） |
+| GET | `/api/options` | ホワイトリスト化された都市 / プリセット / テーマ / 形式の一覧 |
+| POST | `/api/render` | 1 枚レンダリングし（キャッシュ優先）、画像のバイト列を返す |
 
 ## ローカル開発
 
