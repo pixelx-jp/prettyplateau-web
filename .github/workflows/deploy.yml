@@ -1,0 +1,110 @@
+name: Deploy to Cloud Run
+
+# Deploys render-service, then builds + deploys the web frontend against the
+# render-service URL, then wires CORS. Gated by the CLOUDRUN_DEPLOY_ENABLED repo
+# variable so forks / fresh checkouts never deploy. Auth via Workload Identity
+# Federation (no long-lived keys).
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+      - "DEPLOY_SETUP.txt"
+      - ".gitignore"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT: ${{ vars.GCP_PROJECT }}
+  PROJECT_NUMBER: ${{ vars.GCP_PROJECT_NUMBER }}
+  REGION: ${{ vars.GCP_REGION }}
+  BUCKET: ${{ vars.GCS_CACHE_BUCKET }}
+  SVC_NAME: prettyplateau-render
+  WEB_NAME: prettyplateau-web
+
+jobs:
+  render-service:
+    if: ${{ vars.CLOUDRUN_DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.DEPLOY_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Enable APIs
+        run: |
+          gcloud services enable run.googleapis.com cloudbuild.googleapis.com \
+            artifactregistry.googleapis.com storage.googleapis.com --project "$PROJECT"
+
+      - name: Ensure cache bucket + grant runtime SA access
+        run: |
+          gcloud storage buckets describe "gs://${BUCKET}" --project "$PROJECT" >/dev/null 2>&1 \
+            || gcloud storage buckets create "gs://${BUCKET}" --project "$PROJECT" \
+                 --location "$REGION" --uniform-bucket-level-access
+          # Cloud Run runtime (default compute SA) needs read/write on the cache bucket.
+          gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
+            --member "serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+            --role roles/storage.objectAdmin
+
+      - name: Deploy render-service
+        id: deploy
+        run: |
+          gcloud run deploy "$SVC_NAME" \
+            --source render-service \
+            --project "$PROJECT" --region "$REGION" \
+            --memory 8Gi --cpu 4 --concurrency 1 --timeout 900 \
+            --min-instances 0 --max-instances 3 \
+            --set-env-vars "GCS_CACHE_BUCKET=${BUCKET},ALLOW_FETCH=1,MAX_INFLIGHT=2" \
+            --allow-unauthenticated
+          URL="$(gcloud run services describe "$SVC_NAME" --project "$PROJECT" --region "$REGION" --format='value(status.url)')"
+          echo "url=${URL}" >> "$GITHUB_OUTPUT"
+          echo "render-service: ${URL}"
+
+  web:
+    if: ${{ vars.CLOUDRUN_DEPLOY_ENABLED == 'true' }}
+    needs: render-service
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.DEPLOY_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build web image (bakes VITE_API_BASE)
+        run: |
+          IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/cloud-run-source-deploy/${WEB_NAME}:${GITHUB_SHA::12}"
+          echo "IMAGE=${IMAGE}" >> "$GITHUB_ENV"
+          gcloud builds submit web --project "$PROJECT" --region "$REGION" \
+            --config web/cloudbuild.yaml \
+            --substitutions "_API_BASE=${{ needs.render-service.outputs.url }},_IMAGE=${IMAGE}"
+
+      - name: Deploy web
+        run: |
+          gcloud run deploy "$WEB_NAME" \
+            --image "$IMAGE" \
+            --project "$PROJECT" --region "$REGION" \
+            --memory 256Mi --cpu 1 --min-instances 0 --max-instances 4 \
+            --allow-unauthenticated
+          WEB_URL="$(gcloud run services describe "$WEB_NAME" --project "$PROJECT" --region "$REGION" --format='value(status.url)')"
+          echo "web: ${WEB_URL}"
+
+      - name: Wire CORS (render-service allows web origins)
+        run: |
+          WEB_URL="$(gcloud run services describe "$WEB_NAME" --project "$PROJECT" --region "$REGION" --format='value(status.url)')"
+          # Allow both the run.app URL and the custom domain. '^@^' lets the value contain commas.
+          gcloud run services update "$SVC_NAME" --project "$PROJECT" --region "$REGION" \
+            --update-env-vars "^@^CORS_ORIGINS=${WEB_URL},${CUSTOM_WEB_ORIGIN}"
+        env:
+          CUSTOM_WEB_ORIGIN: https://prettyplateau.plateau.yodolabs.jp

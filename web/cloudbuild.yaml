@@ -1,0 +1,16 @@
+# Build the web image with VITE_API_BASE baked in (gcloud run deploy --source
+# can't pass --build-arg, so we build explicitly here, then deploy --image).
+# Substitutions: _API_BASE (render-service URL), _IMAGE (full AR image ref).
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --build-arg
+      - VITE_API_BASE=${_API_BASE}
+      - -t
+      - ${_IMAGE}
+      - .
+images:
+  - ${_IMAGE}
+options:
+  logging: CLOUD_LOGGING_ONLY

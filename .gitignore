@@ -1,0 +1,23 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Node / Vite
+node_modules/
+web/dist/
+*.tsbuildinfo
+
+# Baked city data (populated by scripts/bake-data.sh; pulled from public source)
+render-service/baked-data/*
+!render-service/baked-data/.gitkeep
+
+# Local caches / scratch
+*.log
+.DS_Store
+
+# Local-only ops helper (contains GCP project identifiers; don't publish)
+DEPLOY_SETUP.txt
+
+# Internal design/planning doc (kept local, not published)
+PLAN.md

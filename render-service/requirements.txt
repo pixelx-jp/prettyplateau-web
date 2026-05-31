@@ -1,0 +1,7 @@
+# Render service deps. prettyplateau[animation] pulls imageio + imageio-ffmpeg
+# (bundled static ffmpeg) — so NO system ffmpeg/cairo/GDAL is needed; the image
+# is pure pip wheels (PLAN.md §11-A).
+prettyplateau[animation]>=0.1.2
+fastapi>=0.115
+uvicorn[standard]>=0.30
+google-cloud-storage>=2.18

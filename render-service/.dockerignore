@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+baked-data/3dtiles
+baked-data/**/_work
+baked-data/**/style
+baked-data/**/*.pmtiles
