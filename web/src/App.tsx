@@ -94,16 +94,23 @@ export function App() {
   return (
     <div className="shell">
       <header className="hero">
-        <a className="brand" href={YODO} target="_blank" rel="noreferrer">
-          <img src="/yodo-labs-logo.svg" alt="Yodo Labs" />
-        </a>
         <div className="hero-text">
           <h1>prettyplateau</h1>
           <p className="tagline">{s.tagline}</p>
-          <p className="links">
-            <a href={LIB_REPO}>{s.libLink}</a>
-            <a href={WEB_REPO}>{s.sourceLink}</a>
-            <a href="https://pypi.org/project/prettyplateau/">PyPI ↗</a>
+          <p className="os-note">
+            {lang === "ja" ? (
+              <>
+                オープンソースです。<a href={LIB_REPO}>prettyplateau</a> が画像を生成する
+                レンダリングライブラリ本体で、このサイトはそれをブラウザから使うデモ。
+                <a href={WEB_REPO}>prettyplateau-web</a> はそのサイト自体のソースコードです。
+              </>
+            ) : (
+              <>
+                Open source. <a href={LIB_REPO}>prettyplateau</a> is the rendering library
+                that makes the images; this site is a browser demo of it, and{" "}
+                <a href={WEB_REPO}>prettyplateau-web</a> is the site's own source.
+              </>
+            )}
           </p>
         </div>
         {langToggle}
