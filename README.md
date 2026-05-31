@@ -23,6 +23,12 @@
   <a href="./README.ja.md">日本語版 README →</a>
 </p>
 
+<p align="center">
+  <a href="https://prettyplateau.plateau.yodolabs.jp">
+    <img src="https://raw.githubusercontent.com/pixelx-jp/prettyplateau/main/gallery/shibuya_use_mosaic.png" width="100%" alt="Shibuya rendered by prettyplateau — every building coloured by usage" />
+  </a>
+</p>
+
 ---
 
 Pick a city, preset, theme, and format, and render a print-quality city map
@@ -35,6 +41,19 @@ this demo runs) · [`plateau-bridge`](https://github.com/pixelx-jp/plateau-bridg
 (the building-data pipeline it reads) ·
 [`plateau-risk-lens`](https://github.com/pixelx-jp/plateau-risk-lens) (a separate
 sibling — a 2D disaster-risk map explainer).
+
+## Gallery
+
+|  |  |
+|---|---|
+| <img src="https://raw.githubusercontent.com/pixelx-jp/prettyplateau/main/gallery/minato_height_topo.png" alt="Minato — Height Topo" /> | <img src="https://raw.githubusercontent.com/pixelx-jp/prettyplateau/main/gallery/koto_flood_depth.png" alt="Kōtō — Flood Depth" /> |
+| **Height Topo** — Minato's skyline binned by building height. | **Flood Depth** — Kōtō's river-flood exposure; grey hatch = no survey data. |
+| <img src="https://raw.githubusercontent.com/pixelx-jp/prettyplateau/main/gallery/fukuoka_age_rainbow.png" alt="Fukuoka — Age Rainbow" /> | <img src="https://raw.githubusercontent.com/pixelx-jp/prettyplateau/main/gallery/shibuya_zoning_mosaic.png" alt="Shibuya — Zoning Mosaic" /> |
+| **Age Rainbow** — Fukuoka coloured by year built. | **Zoning Mosaic** — Shibuya's 用途地域 zoning categories. |
+
+Nine static presets (usage, height, flood depth, risk, building age, zoning,
+density…) × six themes × PNG / SVG / PDF, plus an `mp4` survivor-timeline
+animation — all driven live by [`prettyplateau`](https://github.com/pixelx-jp/prettyplateau).
 
 ## Architecture
 
