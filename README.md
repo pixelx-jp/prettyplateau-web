@@ -55,6 +55,11 @@ Nine static presets (usage, height, flood depth, risk, building age, zoning,
 density…) × six themes × PNG / SVG / PDF, plus an `mp4` survivor-timeline
 animation — all driven live by [`prettyplateau`](https://github.com/pixelx-jp/prettyplateau).
 
+<p align="center">
+  <img src="docs/assets/survivor_timeline.gif" width="620" alt="Fukuoka survivor timeline — buildings revealed by year built" /><br/>
+  <sub><strong>Survivor Timeline</strong> — Fukuoka's buildings revealed in order of year built (prerendered mp4).</sub>
+</p>
+
 ## Architecture
 
 ```
