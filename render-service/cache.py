@@ -27,7 +27,9 @@ _LOCAL_DIR = Path(os.environ.get("LOCAL_CACHE_DIR", "/tmp/ppcache")).expanduser(
 
 
 def cache_key(*, city: str, preset: str, theme: str, fmt: str, width: int) -> str:
-    raw = f"v1|{city}|{preset}|{theme}|{fmt}|{width}"
+    # Bump the version prefix to invalidate stale renders (e.g. v1 → v2 after the
+    # dpi fix that resolved overlapping legend/title/attribution text).
+    raw = f"v2|{city}|{preset}|{theme}|{fmt}|{width}"
     return hashlib.sha256(raw.encode()).hexdigest()
 
 

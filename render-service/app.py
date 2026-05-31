@@ -168,6 +168,11 @@ def _do_render(city_slug: str, preset: str, theme: str, fmt: str, width: int) ->
     from prettyplateau.core.errors import DataFieldMissingError, PrettyPlateauError
 
     data_root = resolve_data_root(city_slug)
+    # prettyplateau sizes legend/title/attribution text in physical inches
+    # (figure inches = width_px / dpi). The default dpi=300 makes a tiny ~4.7"
+    # figure at web widths, so that text overlaps. Target a ~13" figure (the
+    # size the library's own 4K gallery renders assume) by scaling dpi to width.
+    dpi = max(72, round(width / 13))
     with tempfile.TemporaryDirectory() as tmp:
         out_path = Path(tmp) / f"{city_slug}.{fmt}"
         try:
@@ -178,6 +183,7 @@ def _do_render(city_slug: str, preset: str, theme: str, fmt: str, width: int) ->
                 theme=theme,
                 format=fmt,  # type: ignore[arg-type]  # validated ∈ LIVE_FORMATS
                 width=width,
+                dpi=dpi,
                 overwrite=True,
                 data_root=data_root,
             )
