@@ -1,0 +1,34 @@
+name: Prewarm cache
+
+# Warms the render cache for popular combos so first visitors get an instant
+# cache HIT. Runs *after* a successful Deploy (decoupled, so the slow render
+# calls never inflate the deploy run) and is manually triggerable. Best-effort.
+
+on:
+  workflow_run:
+    workflows: ["Deploy to Cloud Run"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  prewarm:
+    # Only after a successful deploy (or a manual dispatch), and only when deploys are enabled.
+    if: ${{ vars.CLOUDRUN_DEPLOY_ENABLED == 'true' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.DEPLOY_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Warm popular combos
+        run: |
+          SVC_URL="$(gcloud run services describe prettyplateau-render \
+            --project '${{ vars.GCP_PROJECT }}' --region '${{ vars.GCP_REGION }}' \
+            --format='value(status.url)')"
+          bash scripts/prewarm.sh "$SVC_URL"

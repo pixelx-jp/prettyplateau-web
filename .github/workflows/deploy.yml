@@ -108,11 +108,5 @@ jobs:
             --update-env-vars "^@^CORS_ORIGINS=${WEB_URL},${CUSTOM_WEB_ORIGIN}"
         env:
           CUSTOM_WEB_ORIGIN: https://prettyplateau.plateau.yodolabs.jp
-
-      # Best-effort: warm the cache for popular combos so first visitors get an
-      # instant HIT. Already-cached combos return fast; never blocks the deploy.
-      - name: Prewarm render cache
-        continue-on-error: true
-        run: |
-          SVC_URL="$(gcloud run services describe "$SVC_NAME" --project "$PROJECT" --region "$REGION" --format='value(status.url)')"
-          bash scripts/prewarm.sh "$SVC_URL"
+          # Cache warming runs separately (.github/workflows/prewarm.yml) so the
+          # slow render calls never inflate this deploy.
