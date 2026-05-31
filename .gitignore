@@ -21,3 +21,6 @@ DEPLOY_SETUP.txt
 
 # Internal design/planning doc (kept local, not published)
 PLAN.md
+
+# Local Claude Code agent settings — never publish
+.claude/
