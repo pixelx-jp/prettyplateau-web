@@ -57,6 +57,30 @@ export function App() {
   const eta = cityObj ? estimateSeconds(cityObj.n_buildings, width) : 0;
   const cityName = (c: { name_en: string; name_ja: string }) => (lang === "ja" ? c.name_ja : c.name_en);
 
+  // Detect file-sharing support (iOS/Android): lets us open the native share
+  // sheet so the user can tap "Save Image"/"Save Video" → straight to Photos.
+  const canShareFiles = typeof navigator !== "undefined" && typeof navigator.canShare === "function";
+
+  async function onSave(r: RenderResult) {
+    const fname = `${city}_${preset}.${r.format}`;
+    const file = new File([r.blob], fname, { type: r.blob.type || "application/octet-stream" });
+    if (canShareFiles && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: fname });
+        return;
+      } catch (e) {
+        if (e instanceof Error && e.name === "AbortError") return; // user cancelled
+      }
+    }
+    // Desktop / unsupported: plain download.
+    const a = document.createElement("a");
+    a.href = r.url;
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
   async function onGenerate() {
     if (!canRender) return;
     setBusy(true);
@@ -215,9 +239,9 @@ export function App() {
                 <img src={result.url} alt={`${city} ${preset}`} />
               )}
               <div className="result-bar">
-                <a className="download" href={result.url} download={`${city}_${preset}.${result.format}`}>
-                  {s.download(result.format.toUpperCase())}
-                </a>
+                <button className="download" type="button" onClick={() => onSave(result)}>
+                  {canShareFiles ? s.save : s.download(result.format.toUpperCase())}
+                </button>
                 <span className="meta">
                   {result.cache === "HIT" ? s.cached : result.elapsedMs ? s.elapsed((result.elapsedMs / 1000).toFixed(1)) : ""}
                 </span>

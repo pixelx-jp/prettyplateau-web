@@ -38,6 +38,7 @@ export interface Strings {
   renderingOf: (city: string, preset: string) => string;
   progress: (cur: string, eta: number) => string;
   download: (fmt: string) => string;
+  save: string;
   cached: string;
   elapsed: (s: string) => string;
   pdfReady: string;
@@ -105,6 +106,7 @@ export const STRINGS: Record<Lang, Strings> = {
     renderingOf: (city, preset) => `Rendering ${city} · ${preset}`,
     progress: (cur, eta) => `${cur}s / ~${eta}s`,
     download: (fmt) => `Download ${fmt}`,
+    save: "Save / Share",
     cached: "cached",
     elapsed: (s) => `${s}s`,
     pdfReady: "PDF ready.",
@@ -150,6 +152,7 @@ export const STRINGS: Record<Lang, Strings> = {
     renderingOf: (city, preset) => `${city} · ${preset} を生成中`,
     progress: (cur, eta) => `${cur}秒 / 約${eta}秒`,
     download: (fmt) => `${fmt} をダウンロード`,
+    save: "保存・シェア",
     cached: "キャッシュ済み",
     elapsed: (s) => `${s}秒`,
     pdfReady: "PDF を生成しました。",
