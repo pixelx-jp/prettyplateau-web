@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchOptions, render, type Options, type RenderResult } from "./api";
-import { GALLERY, galleryUrl } from "./gallery";
+import { GALLERY, galleryUrl, caption } from "./gallery";
+import { STRINGS, detectLang, type Lang } from "./i18n";
 
 const LIB_REPO = "https://github.com/pixelx-jp/prettyplateau"; // the rendering library
 const DATA_REPO = "https://github.com/pixelx-jp/plateau-bridge"; // the data pipeline
@@ -9,14 +10,16 @@ const YODO = "https://yodolabs.jp";
 
 // Render-time estimate (s), calibrated to the Cloud Run service (CPU-bound,
 // ~3-4x slower than a dev laptop): chiyoda 12.5k ≈ 45s, shibuya 42k ≈ 80s at
-// ~1400px. Scales with building count and pixel width. Deliberately slightly
-// pessimistic so the progress bar under-promises.
+// ~1400px. Deliberately slightly pessimistic so the progress bar under-promises.
 function estimateSeconds(nBuildings: number, width: number): number {
-  const base = 30 + nBuildings / 650; // seconds at ~1400px
+  const base = 30 + nBuildings / 650;
   return Math.round(base * (width / 1400));
 }
 
 export function App() {
+  const [lang, setLang] = useState<Lang>(detectLang());
+  const s = STRINGS[lang];
+
   const [opts, setOpts] = useState<Options | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,14 +38,24 @@ export function App() {
     fetchOptions().then(setOpts).catch((e) => setError(String(e)));
   }, []);
 
+  function switchLang(next: Lang) {
+    setLang(next);
+    try {
+      localStorage.setItem("lang", next);
+    } catch {
+      /* ignore */
+    }
+    document.documentElement.lang = next;
+  }
+
   const cityObj = useMemo(() => opts?.cities.find((c) => c.slug === city), [opts, city]);
   const presetObj = useMemo(() => opts?.presets.find((p) => p.id === preset), [opts, preset]);
   const isMp4Preset = presetObj?.kind === "mp4";
   const cityIsLive = cityObj?.live ?? true;
-  const width = hiRes ? 3840 : (opts?.width.default ?? 1800);
+  const width = hiRes ? 3840 : opts?.width.default ?? 1400;
   const canRender = !!opts && cityIsLive && !isMp4Preset && !busy;
-
   const eta = cityObj ? estimateSeconds(cityObj.n_buildings, width) : 0;
+  const cityName = (c: { name_en: string; name_ja: string }) => (lang === "ja" ? c.name_ja : c.name_en);
 
   async function onGenerate() {
     if (!canRender) return;
@@ -66,10 +79,17 @@ export function App() {
   if (error && !opts) {
     return (
       <div className="shell">
-        <p className="error">Could not reach the render service: {error}</p>
+        <p className="error">{s.unreachable(error)}</p>
       </div>
     );
   }
+
+  const langToggle = (
+    <div className="langtoggle" role="group" aria-label="language">
+      <button className={lang === "en" ? "on" : ""} onClick={() => switchLang("en")} type="button">EN</button>
+      <button className={lang === "ja" ? "on" : ""} onClick={() => switchLang("ja")} type="button">日本語</button>
+    </div>
+  );
 
   return (
     <div className="shell">
@@ -79,36 +99,34 @@ export function App() {
         </a>
         <div className="hero-text">
           <h1>prettyplateau</h1>
-          <p className="tagline">
-            Print-quality city visualizations from Japan's <a href="https://www.mlit.go.jp/plateau/">Project PLATEAU</a> open data —
-            rendered live, in your browser.
-          </p>
+          <p className="tagline">{s.tagline}</p>
           <p className="links">
-            <a href={LIB_REPO}>prettyplateau library ↗</a>
-            <a href={WEB_REPO}>source ↗</a>
+            <a href={LIB_REPO}>{s.libLink}</a>
+            <a href={WEB_REPO}>{s.sourceLink}</a>
             <a href="https://pypi.org/project/prettyplateau/">PyPI ↗</a>
           </p>
         </div>
+        {langToggle}
       </header>
 
       <main className="grid">
         <section className="panel">
-          <h2>Make your own</h2>
+          <h2>{s.makeYourOwn}</h2>
 
           <label>
-            City
+            {s.city}
             <select value={city} onChange={(e) => setCity(e.target.value)}>
-              <optgroup label="Render live">
+              <optgroup label={s.liveGroup}>
                 {opts?.cities.filter((c) => c.live).map((c) => (
                   <option key={c.slug} value={c.slug}>
-                    {c.name_en} {c.name_ja} · {c.n_buildings.toLocaleString()} bldg
+                    {cityName(c)} · {s.bldg(c.n_buildings)}
                   </option>
                 ))}
               </optgroup>
-              <optgroup label="Too large — prerendered only">
+              <optgroup label={s.prerenderGroup}>
                 {opts?.cities.filter((c) => !c.live).map((c) => (
                   <option key={c.slug} value={c.slug}>
-                    {c.name_en} {c.name_ja} · {c.n_buildings.toLocaleString()} bldg
+                    {cityName(c)} · {s.bldg(c.n_buildings)}
                   </option>
                 ))}
               </optgroup>
@@ -116,19 +134,19 @@ export function App() {
           </label>
 
           <label>
-            Preset
+            {s.preset}
             <select value={preset} onChange={(e) => setPreset(e.target.value)}>
               {opts?.presets.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} {p.kind === "mp4" ? "(animation)" : ""}
+                  {s.presetName(p.id, p.name)} {p.kind === "mp4" ? "🎬" : ""}
                 </option>
               ))}
             </select>
           </label>
-          {presetObj && <p className="hint">{presetObj.description}</p>}
+          {presetObj && <p className="hint">{s.presetDesc(presetObj.id, presetObj.description)}</p>}
 
           <label>
-            Theme
+            {s.theme}
             <div className="chips">
               {opts?.themes.map((t) => (
                 <button
@@ -138,7 +156,7 @@ export function App() {
                   type="button"
                   disabled={presetObj ? !presetObj.supports_themes : false}
                 >
-                  {t}
+                  {s.themeLabel(t)}
                 </button>
               ))}
             </div>
@@ -146,7 +164,7 @@ export function App() {
 
           <div className="row">
             <label className="grow">
-              Format
+              {s.format}
               <select value={format} onChange={(e) => setFormat(e.target.value)}>
                 {opts?.formats.map((f) => (
                   <option key={f} value={f}>
@@ -157,25 +175,18 @@ export function App() {
             </label>
             <label className="checkbox">
               <input type="checkbox" checked={hiRes} onChange={(e) => setHiRes(e.target.checked)} />
-              4K (slower)
+              {s.hiRes}
             </label>
           </div>
-          {format === "svg" && <p className="hint">SVG can be large (tens of MB) for dense cities.</p>}
+          {format === "svg" && <p className="hint">{s.svgHint}</p>}
 
-          {!cityIsLive && (
-            <p className="warn">
-              {cityObj?.name_en} has {cityObj?.n_buildings.toLocaleString()} buildings — too large to render live.
-              Pick a smaller city, or see example renders in the gallery below.
-            </p>
-          )}
-          {isMp4Preset && (
-            <p className="warn">Animations aren't rendered on demand (each mp4 takes minutes). See the gallery.</p>
-          )}
+          {!cityIsLive && cityObj && <p className="warn">{s.tooLarge(cityName(cityObj), cityObj.n_buildings)}</p>}
+          {isMp4Preset && <p className="warn">{s.mp4Warn}</p>}
 
           <button className="generate" onClick={onGenerate} disabled={!canRender} type="button">
-            {busy ? `Rendering… ${elapsed.toFixed(1)}s` : "Generate"}
+            {busy ? s.rendering(elapsed.toFixed(1)) : s.generate}
           </button>
-          {canRender && !busy && <p className="hint">~{eta}s expected · {width}px</p>}
+          {canRender && !busy && <p className="hint">{s.eta(eta, width)}</p>}
           {error && <p className="error">{error}</p>}
         </section>
 
@@ -183,25 +194,25 @@ export function App() {
           {busy && (
             <div className="placeholder">
               <div className="spinner" />
-              <p>Rendering {cityObj?.name_en} · {preset}</p>
-              <p className="hint">{elapsed.toFixed(1)}s / ~{eta}s</p>
+              <p>{s.renderingOf(cityObj ? cityName(cityObj) : city, s.presetName(preset, presetObj?.name ?? preset))}</p>
+              <p className="hint">{s.progress(elapsed.toFixed(1), eta)}</p>
             </div>
           )}
           {!busy && result && (
             <div className="result">
               {result.format === "pdf" ? (
                 <div className="placeholder">
-                  <p>PDF ready.</p>
+                  <p>{s.pdfReady}</p>
                 </div>
               ) : (
                 <img src={result.url} alt={`${city} ${preset}`} />
               )}
               <div className="result-bar">
                 <a className="download" href={result.url} download={`${city}_${preset}.${result.format}`}>
-                  Download {result.format.toUpperCase()}
+                  {s.download(result.format.toUpperCase())}
                 </a>
                 <span className="meta">
-                  {result.cache === "HIT" ? "cached" : result.elapsedMs ? `${(result.elapsedMs / 1000).toFixed(1)}s` : ""}
+                  {result.cache === "HIT" ? s.cached : result.elapsedMs ? s.elapsed((result.elapsedMs / 1000).toFixed(1)) : ""}
                 </span>
               </div>
               {result.warnings.length > 0 && (
@@ -215,35 +226,32 @@ export function App() {
           )}
           {!busy && !result && (
             <div className="placeholder">
-              <p>Pick a city and preset, then hit Generate.</p>
+              <p>{s.placeholder}</p>
             </div>
           )}
         </section>
       </main>
 
       <section className="gallery">
-        <h2>Animation</h2>
+        <h2>{s.animationHeading}</h2>
         <figure className="showcase">
-          <video controls loop muted playsInline preload="metadata" poster="">
+          <video controls loop muted playsInline preload="metadata">
             <source src="/showcase/fukuoka_survivor_timeline.mp4" type="video/mp4" />
           </video>
           <figcaption>
-            <strong>Fukuoka · Survivor Timeline</strong>
-            <span>
-              Buildings revealed by year built. Animation presets (mp4) are prerendered — each takes minutes — so
-              they're shown here rather than generated live.
-            </span>
+            <strong>{s.showcaseTitle}</strong>
+            <span>{s.showcaseCaption}</span>
           </figcaption>
         </figure>
 
-        <h2>Gallery</h2>
+        <h2>{s.galleryHeading}</h2>
         <div className="gallery-grid">
           {GALLERY.map((g) => (
             <figure key={g.file}>
               <img loading="lazy" src={galleryUrl(g.file)} alt={g.title} />
               <figcaption>
                 <strong>{g.title}</strong>
-                <span>{g.caption}</span>
+                <span>{caption(g, lang)}</span>
               </figcaption>
             </figure>
           ))}
@@ -253,15 +261,15 @@ export function App() {
       <footer className="footer">
         <div className="footer-cols">
           <div className="footer-col">
-            <h3>Open source</h3>
-            <a href={LIB_REPO}>prettyplateau — rendering library</a>
-            <a href={DATA_REPO}>plateau-bridge — building data pipeline</a>
-            <a href={WEB_REPO}>prettyplateau-web — this app</a>
+            <h3>{s.footOpenSource}</h3>
+            <a href={LIB_REPO}>{s.footLibrary}</a>
+            <a href={DATA_REPO}>{s.footData}</a>
+            <a href={WEB_REPO}>{s.footThisApp}</a>
           </div>
           <div className="footer-col">
-            <h3>Data &amp; licence</h3>
-            <span>Renders carry © Project PLATEAU / MLIT (CC BY 4.0), embedded in the image and metadata — never removable.</span>
-            <span>Code: MIT · Data: CC BY 4.0</span>
+            <h3>{s.footDataLicence}</h3>
+            <span>{s.footAttribution}</span>
+            <span>{s.footLicences}</span>
           </div>
           <div className="footer-col footer-brand">
             <a href={YODO} target="_blank" rel="noreferrer">

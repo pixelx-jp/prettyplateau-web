@@ -19,10 +19,15 @@ a:hover { text-decoration: underline; }
 
 .shell { max-width: 1200px; margin: 0 auto; padding: 32px 20px 64px; }
 
-.hero { padding: 24px 0 16px; border-bottom: 1px solid var(--line); display: flex; gap: 18px; align-items: flex-start; }
+.hero { padding: 24px 0 16px; border-bottom: 1px solid var(--line); display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
 .brand { flex: 0 0 auto; }
 .brand img { height: 44px; width: auto; display: block; opacity: 0.95; }
+.hero-text { flex: 1 1 320px; min-width: 0; }
 .hero h1 { font-size: 40px; margin: 0; letter-spacing: -0.02em; }
+
+.langtoggle { margin-left: auto; display: flex; gap: 0; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; align-self: flex-start; }
+.langtoggle button { background: var(--panel); color: var(--muted); border: none; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+.langtoggle button.on { background: var(--accent); color: #fff; }
 .tagline { color: var(--muted); max-width: 640px; line-height: 1.5; }
 .links { display: flex; gap: 18px; font-size: 14px; }
 
@@ -96,3 +101,27 @@ a:hover { text-decoration: underline; }
 .footer-col a { color: var(--accent-2); }
 .footer-col span { color: var(--muted); line-height: 1.5; }
 .footer-brand img { height: 40px; width: auto; margin-bottom: 6px; opacity: 0.95; }
+
+/* Phone optimization */
+@media (max-width: 560px) {
+  .shell { padding: 16px 14px 48px; }
+  .hero { padding: 12px 0 14px; gap: 12px; }
+  .hero h1 { font-size: 30px; }
+  .brand img { height: 36px; }
+  .tagline { font-size: 14px; }
+  .links { flex-wrap: wrap; gap: 12px; }
+  .langtoggle { order: -1; } /* show language switch first on small screens */
+  .panel, .stage { padding: 16px; border-radius: 12px; }
+  .stage { min-height: 280px; }
+  /* 16px inputs stop iOS Safari from auto-zooming on focus */
+  .panel select, .panel input[type="number"] { font-size: 16px; }
+  .chip { padding: 8px 12px; font-size: 13px; } /* larger tap targets */
+  .generate { padding: 14px; font-size: 16px; }
+  .gallery-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .gallery figcaption { font-size: 12px; }
+  .showcase { max-width: 100%; }
+  .result-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
+}
+@media (max-width: 380px) {
+  .gallery-grid { grid-template-columns: 1fr; }
+}
