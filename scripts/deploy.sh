@@ -28,7 +28,7 @@ echo "==> deploying render-service"
 gcloud run deploy "$SVC_NAME" \
   --source "${ROOT}/render-service" \
   --project "$PROJECT" --region "$REGION" \
-  --memory 8Gi --cpu 4 --concurrency 1 --timeout 900 \
+  --memory 8Gi --cpu 4 --cpu-boost --concurrency 1 --timeout 900 \
   --min-instances 0 --max-instances 3 \
   --set-env-vars "GCS_CACHE_BUCKET=${BUCKET},ALLOW_FETCH=1,MAX_INFLIGHT=2" \
   --allow-unauthenticated

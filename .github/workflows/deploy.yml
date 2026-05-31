@@ -62,7 +62,7 @@ jobs:
           gcloud run deploy "$SVC_NAME" \
             --source render-service \
             --project "$PROJECT" --region "$REGION" \
-            --memory 8Gi --cpu 4 --concurrency 1 --timeout 900 \
+            --memory 8Gi --cpu 4 --cpu-boost --concurrency 1 --timeout 900 \
             --min-instances 0 --max-instances 3 \
             --set-env-vars "GCS_CACHE_BUCKET=${BUCKET},ALLOW_FETCH=1,MAX_INFLIGHT=2" \
             --allow-unauthenticated
@@ -108,3 +108,11 @@ jobs:
             --update-env-vars "^@^CORS_ORIGINS=${WEB_URL},${CUSTOM_WEB_ORIGIN}"
         env:
           CUSTOM_WEB_ORIGIN: https://prettyplateau.plateau.yodolabs.jp
+
+      # Best-effort: warm the cache for popular combos so first visitors get an
+      # instant HIT. Already-cached combos return fast; never blocks the deploy.
+      - name: Prewarm render cache
+        continue-on-error: true
+        run: |
+          SVC_URL="$(gcloud run services describe "$SVC_NAME" --project "$PROJECT" --region "$REGION" --format='value(status.url)')"
+          bash scripts/prewarm.sh "$SVC_URL"
