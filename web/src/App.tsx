@@ -38,6 +38,14 @@ export function App() {
     fetchOptions().then(setOpts).catch((e) => setError(String(e)));
   }, []);
 
+  // Free the previous render's object URL when a new result replaces it (or on
+  // unmount). Without this, each generate leaks its blob — tens of MB for an
+  // SVG — and memory growth makes the whole page sluggish over a session.
+  useEffect(() => {
+    if (!result) return;
+    return () => URL.revokeObjectURL(result.url);
+  }, [result]);
+
   function switchLang(next: Lang) {
     setLang(next);
     try {
@@ -231,12 +239,16 @@ export function App() {
           )}
           {!busy && result && (
             <div className="result">
-              {result.format === "pdf" ? (
-                <div className="placeholder">
-                  <p>{s.pdfReady}</p>
-                </div>
-              ) : (
+              {result.format === "png" ? (
+                // Only raster previews go inline. A dense-city SVG is tens of
+                // MB of vector paths; an <img> of it makes the browser
+                // re-rasterize on every reflow (e.g. toggling a theme chip),
+                // so SVG/PDF show a download card instead.
                 <img src={result.url} alt={`${city} ${preset}`} />
+              ) : (
+                <div className="placeholder">
+                  <p>{result.format === "svg" ? s.svgReady : s.pdfReady}</p>
+                </div>
               )}
               <div className="result-bar">
                 <button className="download" type="button" onClick={() => onSave(result)}>
@@ -279,7 +291,7 @@ export function App() {
         <div className="gallery-grid">
           {GALLERY.map((g) => (
             <figure key={g.file}>
-              <img loading="lazy" src={galleryUrl(g.file)} alt={g.title} />
+              <img loading="lazy" decoding="async" src={galleryUrl(g.file)} alt={g.title} />
               <figcaption>
                 <strong>{g.title}</strong>
                 <span>{caption(g, lang)}</span>

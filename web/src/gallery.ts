@@ -27,5 +27,10 @@ export const GALLERY: GalleryItem[] = [
   { file: "yokohama_density_hex.png", title: "Yokohama 横浜市 · Density Hex", caption: { en: "883k buildings on a hex lattice.", ja: "88万棟をヘックス格子で。" } },
 ];
 
-export const galleryUrl = (file: string) => `${RAW}/${file}`;
+// The grid shows small thumbnails (≤~400px, cropped 4:5), so we link the
+// pre-generated ~1000px webp thumbnails under gallery/thumbs/ rather than the
+// full-resolution PNGs — the full set was ~31 MB of source images decoded at
+// native size; the webp thumbnails total ~1.7 MB. The originals stay in the
+// repo for download / other consumers.
+export const galleryUrl = (file: string) => `${RAW}/thumbs/${file.replace(/\.png$/, ".webp")}`;
 export const caption = (item: GalleryItem, lang: Lang) => item.caption[lang];

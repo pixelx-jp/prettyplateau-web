@@ -42,6 +42,7 @@ export interface Strings {
   cached: string;
   elapsed: (s: string) => string;
   pdfReady: string;
+  svgReady: string;
   animationHeading: string;
   showcaseTitle: string;
   showcaseCaption: string;
@@ -110,6 +111,7 @@ export const STRINGS: Record<Lang, Strings> = {
     cached: "cached",
     elapsed: (s) => `${s}s`,
     pdfReady: "PDF ready.",
+    svgReady: "SVG ready — too large to preview here. Download or save it below.",
     animationHeading: "Animation",
     showcaseTitle: "Fukuoka · Survivor Timeline",
     showcaseCaption:
@@ -156,6 +158,7 @@ export const STRINGS: Record<Lang, Strings> = {
     cached: "キャッシュ済み",
     elapsed: (s) => `${s}秒`,
     pdfReady: "PDF を生成しました。",
+    svgReady: "SVG を生成しました。プレビューには大きすぎるため、下のボタンから保存してください。",
     animationHeading: "アニメーション",
     showcaseTitle: "福岡 · サバイバー・タイムライン",
     showcaseCaption:
