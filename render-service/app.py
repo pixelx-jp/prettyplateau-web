@@ -13,6 +13,7 @@ renderer. See PLAN.md for the full design.
 from __future__ import annotations
 
 import asyncio
+import gzip
 import logging
 import os
 import tempfile
@@ -62,6 +63,44 @@ _CONTENT_TYPE = {
     "pdf": "application/pdf",
     "mp4": "video/mp4",
 }
+
+# Cloud Run caps a non-streamed response at 32 MB. SVG is vector XML whose size
+# scales with building count — even the smallest live city is ~46 MB raw, dense
+# cities reach ~150 MB — so a raw SVG response is rejected by the platform with
+# a header-less 500 (which the browser then mislabels as a CORS error). gzip
+# shrinks that text ~15-30× (well under the cap); browsers and curl --compressed
+# transparently decompress, so the saved artifact is still a full .svg. Binary
+# formats (png/pdf) are already compact and compressed, so we leave them alone.
+_GZIP_FORMATS: frozenset[str] = frozenset({"svg"})
+
+
+def _maybe_gzip(data: bytes, fmt: str) -> tuple[bytes, str | None]:
+    """Return ``(body, content_encoding)``; gzip text formats so the response
+    fits Cloud Run's 32 MB cap. CPU-bound — call off the event loop."""
+    if fmt in _GZIP_FORMATS:
+        return gzip.compress(data, compresslevel=6), "gzip"
+    return data, None
+
+
+# Hard ceiling on the *wire* response body. Cloud Run rejects a non-streamed
+# response over 32 MiB with a header-less 500 from its frontend — which never
+# runs our CORS middleware, so the browser reports a phantom CORS error (this
+# is exactly how the SVG bug surfaced). Guard a touch under the platform limit
+# (headers count too) and turn the silent failure into a clean, CORS-carrying
+# 413 that tells the user what to do, so this whole class of bug self-reports
+# instead of masquerading as CORS. PDF (~20 MB at the largest live city) and
+# 4K PNG (~11 MB) sit under this today; the guard backstops denser future
+# cities or presets without us having to predict which format tips over.
+_MAX_RESPONSE_BYTES = 31 * 1024 * 1024
+
+
+def _guard_size(body: bytes, fmt: str) -> None:
+    if len(body) > _MAX_RESPONSE_BYTES:
+        raise HTTPException(
+            413,
+            f"the rendered {fmt.upper()} is {len(body) // (1024 * 1024)} MB, over the "
+            f"{_MAX_RESPONSE_BYTES // (1024 * 1024)} MB delivery limit — try PNG, or a smaller width.",
+        )
 
 
 # Note: served under /api because Cloud Run's Google Front End intercepts the
@@ -214,12 +253,28 @@ def _ascii_safe(value: str) -> str:
     return value.encode("latin-1", "ignore").decode("latin-1")
 
 
-def _response(data: bytes, fmt: str, city_slug: str, preset: str, meta: dict, cached: bool) -> Response:
+def _response(
+    data: bytes,
+    fmt: str,
+    city_slug: str,
+    preset: str,
+    meta: dict,
+    cached: bool,
+    encoding: str | None = None,
+) -> Response:
+    # ``data`` is the final wire body (already gzipped where applicable). Reject
+    # over-limit responses here so every path is covered — including formats /
+    # cities we haven't predicted.
+    _guard_size(data, fmt)
     headers = {
         "Content-Disposition": f'inline; filename="{city_slug}_{preset}.{fmt}"',
         "X-Cache": "HIT" if cached else "MISS",
         "X-Attribution": _ascii_safe(meta.get("attribution", "")),
     }
+    if encoding:
+        # ``data`` is already compressed; advertise it so clients decompress.
+        headers["Content-Encoding"] = encoding
+        headers["Vary"] = "Accept-Encoding"
     if meta.get("elapsed_ms") is not None:
         headers["X-Elapsed-Ms"] = str(meta["elapsed_ms"])
     if meta.get("warnings"):
@@ -235,7 +290,8 @@ async def render_endpoint(body: RenderBody) -> Response:
     cached = await asyncio.to_thread(CACHE.get, key, fmt)
     if cached is not None:
         log.info("cache HIT %s/%s/%s.%s", city.slug, preset, theme, fmt)
-        return _response(cached, fmt, city.slug, preset, {"attribution": ""}, cached=True)
+        payload, enc = await asyncio.to_thread(_maybe_gzip, cached, fmt)
+        return _response(payload, fmt, city.slug, preset, {"attribution": ""}, cached=True, encoding=enc)
 
     global _inflight
     if _inflight >= MAX_INFLIGHT:  # atomic w.r.t. the line below (no await between)
@@ -246,13 +302,16 @@ async def render_endpoint(body: RenderBody) -> Response:
             # re-check: another request may have filled the cache while we waited
             cached = await asyncio.to_thread(CACHE.get, key, fmt)
             if cached is not None:
-                return _response(cached, fmt, city.slug, preset, {"attribution": ""}, cached=True)
+                payload, enc = await asyncio.to_thread(_maybe_gzip, cached, fmt)
+                return _response(payload, fmt, city.slug, preset, {"attribution": ""}, cached=True, encoding=enc)
 
             log.info("render %s/%s/%s.%s w=%d", city.slug, preset, theme, fmt, width)
             data, meta = await asyncio.to_thread(_do_render, city.slug, preset, theme, fmt, width)
+            # Cache the raw bytes (GCS has no 32 MB limit); compress only the response.
             await asyncio.to_thread(
                 CACHE.put, key, fmt, data, _CONTENT_TYPE.get(fmt, "application/octet-stream")
             )
-            return _response(data, fmt, city.slug, preset, meta, cached=False)
+            payload, enc = await asyncio.to_thread(_maybe_gzip, data, fmt)
+            return _response(payload, fmt, city.slug, preset, meta, cached=False, encoding=enc)
     finally:
         _inflight -= 1
